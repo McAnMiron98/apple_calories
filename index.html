@@ -6,260 +6,208 @@
 <title>Таймер до кино</title>
 <style>
   body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    max-width: 400px;
-    margin: 30px auto;
-    padding: 15px;
-    background: linear-gradient(135deg, #667eea, #764ba2);
-    color: white;
-    border-radius: 12px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    font-family: Arial, sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    transition: background-color 0.3s, color 0.3s;
+    margin: 20px;
   }
-  h1 {
-    margin-bottom: 25px;
-    text-align: center;
+  :root {
+    --bg-color: #fff;
+    --text-color: #222;
+    --input-bg: #f0f0f0;
+    --btn-bg: #007bff;
+    --btn-color: #fff;
   }
-  label {
-    display: block;
-    margin-top: 15px;
-    font-weight: 600;
+  .dark-theme {
+    --bg-color: #121212;
+    --text-color: #eee;
+    --input-bg: #333;
+    --btn-bg: #0d6efd;
+    --btn-color: #fff;
   }
-  input, button {
-    width: 100%;
+  input[type="time"] {
     padding: 10px;
-    margin-top: 6px;
-    font-size: 1rem;
-    border-radius: 8px;
-    border: none;
-  }
-  input[type="datetime-local"], input[type="number"] {
-    box-sizing: border-box;
+    font-size: 1.2em;
+    background-color: var(--input-bg);
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    color: var(--text-color);
   }
   button {
-    background-color: #ff6f61;
-    color: white;
+    padding: 10px 15px;
+    font-size: 1em;
+    background-color: var(--btn-bg);
+    border: none;
+    border-radius: 5px;
+    color: var(--btn-color);
     cursor: pointer;
-    font-weight: 700;
-    transition: background-color 0.3s ease;
+    margin-left: 10px;
   }
   button:hover {
-    background-color: #e85c50;
+    background-color: #0056b3;
   }
-  .timer {
-    margin-top: 30px;
-    background: rgba(255,255,255,0.15);
-    padding: 25px 20px;
-    border-radius: 14px;
+  #timers {
+    margin-top: 20px;
+    font-size: 1.5em;
   }
-  .timer div {
-    font-size: 1.3rem;
-    margin: 15px 0;
-    font-weight: 600;
+  #shareMessage {
+    margin-top: 10px;
+    color: green;
+    font-weight: bold;
   }
-  .time-value {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 1.6rem;
-    color: #ffd700;
-  }
-  .progress-container {
-    background: rgba(255,255,255,0.3);
-    border-radius: 8px;
-    overflow: hidden;
-    height: 15px;
-    margin-top: 8px;
-  }
-  .progress-bar {
-    height: 100%;
-    background-color: #ffd700;
-    width: 0%;
-    transition: width 0.5s ease;
-  }
-  #resetBtn {
-    background-color: #444;
-    margin-top: 15px;
-  }
-  @media (max-width: 450px) {
-    body {
-      margin: 15px;
-      padding: 10px;
-    }
+  .theme-toggle {
+    margin-top: 20px;
   }
 </style>
 </head>
 <body>
-
 <h1>Таймер до кино</h1>
 
-<label for="movieDateTime">Дата и время начала кино:</label>
-<input type="datetime-local" id="movieDateTime" />
-
-<label for="leaveBefore">За сколько минут выходить из дома:</label>
-<input type="number" id="leaveBefore" min="1" max="240" value="60" />
+<label for="movieTime">Введите время начала кино:</label>
+<input type="time" id="movieTime" step="60" />
 
 <button id="startBtn">Запустить таймер</button>
-<button id="resetBtn" style="display:none;">Сбросить таймер</button>
 
-<div class="timer" style="display:none;">
-  <div>До выхода из дома: <span class="time-value" id="timeToLeave">--:--:--:--</span>
-    <div class="progress-container"><div class="progress-bar" id="progressLeave"></div></div>
-  </div>
-  <div>До начала кино: <span class="time-value" id="timeToMovie">--:--:--:--</span>
-    <div class="progress-container"><div class="progress-bar" id="progressMovie"></div></div>
-  </div>
+<div class="theme-toggle">
+  <label>
+    <input type="checkbox" id="themeToggle" />
+    Ночная тема
+  </label>
 </div>
 
+<div id="timers" style="display:none;">
+  <p>До выхода из дома осталось: <span id="leaveTimer">--:--:--</span></p>
+  <p>До начала кино осталось: <span id="movieTimer">--:--:--</span></p>
+</div>
+
+<button id="shareBtn" style="display:none;">Поделиться таймером</button>
+<div id="shareMessage"></div>
+
+<audio id="alertSound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
+
 <script>
-  const movieDateTimeInput = document.getElementById('movieDateTime');
-  const leaveBeforeInput = document.getElementById('leaveBefore');
+  const movieTimeInput = document.getElementById('movieTime');
   const startBtn = document.getElementById('startBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const timerDiv = document.querySelector('.timer');
-  const timeToLeaveSpan = document.getElementById('timeToLeave');
-  const timeToMovieSpan = document.getElementById('timeToMovie');
-  const progressLeave = document.getElementById('progressLeave');
-  const progressMovie = document.getElementById('progressMovie');
+  const leaveTimerDisplay = document.getElementById('leaveTimer');
+  const movieTimerDisplay = document.getElementById('movieTimer');
+  const timersDiv = document.getElementById('timers');
+  const shareBtn = document.getElementById('shareBtn');
+  const shareMessage = document.getElementById('shareMessage');
+  const alertSound = document.getElementById('alertSound');
+  const themeToggle = document.getElementById('themeToggle');
 
-  let intervalId;
+  let intervalId = null;
+  let leaveAlerted = false;
+  let movieAlerted = false;
 
-  // Загрузка сохранённых значений из localStorage
-  window.onload = () => {
-    const savedMovieDateTime = localStorage.getItem('movieDateTime');
-    const savedLeaveBefore = localStorage.getItem('leaveBefore');
-    if (savedMovieDateTime) movieDateTimeInput.value = savedMovieDateTime;
-    if (savedLeaveBefore) leaveBeforeInput.value = savedLeaveBefore;
-  };
-
-  function formatTime(ms) {
-    if (ms <= 0) return "00:00:00:00";
-    const totalSeconds = Math.floor(ms / 1000);
-    const days = Math.floor(totalSeconds / 86400);
-    const hours = Math.floor((totalSeconds % 86400) / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${days}д ${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+  // Ночная тема из localStorage
+  if(localStorage.getItem('darkTheme') === 'true') {
+    document.body.classList.add('dark-theme');
+    themeToggle.checked = true;
   }
 
-  function notifyUser(message) {
-    if (!("Notification" in window)) {
-      alert(message);
-    } else if (Notification.permission === "granted") {
-      new Notification(message);
-    } else if (Notification.permission !== "denied") {
-      Notification.requestPermission().then(permission => {
-        if (permission === "granted") new Notification(message);
-      });
+  themeToggle.addEventListener('change', () => {
+    if(themeToggle.checked) {
+      document.body.classList.add('dark-theme');
+      localStorage.setItem('darkTheme', 'true');
+    } else {
+      document.body.classList.remove('dark-theme');
+      localStorage.setItem('darkTheme', 'false');
     }
+  });
+
+  function playAlert() {
+    alertSound.currentTime = 0;
+    alertSound.play();
   }
 
-  function updateTimers(movieTime, leaveTime) {
-    const now = Date.now();
+  function parseTimeString(timeStr) {
+    // timeStr: "HH:MM"
+    const [h, m] = timeStr.split(':').map(Number);
+    const now = new Date();
+    const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+    // Если время уже прошло сегодня — перенести на завтра
+    if (target <= now) {
+      target.setDate(target.getDate() + 1);
+    }
+    return target;
+  }
 
+  function formatTimeDiff(diffMs) {
+    if(diffMs < 0) return "00:00:00";
+    const totalSec = Math.floor(diffMs / 1000);
+    const h = String(Math.floor(totalSec / 3600)).padStart(2, '0');
+    const m = String(Math.floor((totalSec % 3600) / 60)).padStart(2, '0');
+    const s = String(totalSec % 60).padStart(2, '0');
+    return `${h}:${m}:${s}`;
+  }
+
+  function updateTimers(movieStart) {
+    const now = new Date();
+    const leaveTime = new Date(movieStart.getTime() - 60 * 60 * 1000); // минус 1 час
     const diffLeave = leaveTime - now;
-    const diffMovie = movieTime - now;
+    const diffMovie = movieStart - now;
 
-    timeToLeaveSpan.textContent = formatTime(diffLeave);
-    timeToMovieSpan.textContent = formatTime(diffMovie);
+    leaveTimerDisplay.textContent = formatTimeDiff(diffLeave);
+    movieTimerDisplay.textContent = formatTimeDiff(diffMovie);
 
-    // Прогресс (0% - прошло, 100% - осталось)
-    const totalLeave = movieTime - leaveTime;
-    const totalMovie = movieTime - now + diffMovie;
-
-    let leaveProgress = 0;
-    if(diffLeave > 0 && totalLeave > 0) {
-      leaveProgress = ((totalLeave - diffLeave) / totalLeave) * 100;
-    } else if (diffLeave <= 0) {
-      leaveProgress = 100;
+    if(diffLeave <= 0 && !leaveAlerted && diffMovie > 0) {
+      playAlert();
+      alert("Пора выходить из дома!");
+      leaveAlerted = true;
     }
 
-    let movieProgress = 0;
-    if(diffMovie > 0) {
-      const totalMovieDuration = movieTime - (movieTime - diffMovie + diffMovie);
-      movieProgress = ((totalMovie - diffMovie) / (movieTime - (movieTime - diffMovie + diffMovie))) * 100;
-      // Простой прогресс по времени
-      movieProgress = (1 - diffMovie / (movieTime - (movieTime - diffMovie + diffMovie))) * 100;
+    if(diffMovie <= 0 && !movieAlerted) {
+      playAlert();
+      alert("Фильм начался!");
+      movieAlerted = true;
+      // Можно остановить таймер, если надо:
+      // clearInterval(intervalId);
     }
-    else movieProgress = 100;
-
-    progressLeave.style.width = `${leaveProgress}%`;
-    progressMovie.style.width = `${movieProgress}%`;
-
-    // Уведомления
-    if(diffLeave <= 0 && !notifiedLeave) {
-      notifyUser('Пора выходить из дома!');
-      notifiedLeave = true;
-    }
-    if(diffMovie <= 0 && !notifiedMovie) {
-      notifyUser('Фильм начался!');
-      notifiedMovie = true;
-    }
-
-    if(diffMovie <= 0) timeToMovieSpan.textContent = 'Фильм начался!';
-    if(diffLeave <= 0) timeToLeaveSpan.textContent = 'Пора выходить!';
   }
 
-  let notifiedLeave = false;
-  let notifiedMovie = false;
-
-  startBtn.onclick = () => {
-    const movieDateTime = movieDateTimeInput.value;
-    const leaveBefore = parseInt(leaveBeforeInput.value);
-
-    if (!movieDateTime) {
-      alert('Пожалуйста, выберите дату и время начала кино.');
+  function startTimer() {
+    const timeVal = movieTimeInput.value;
+    if(!timeVal) {
+      alert("Введите время начала кино!");
       return;
     }
-    if (isNaN(leaveBefore) || leaveBefore <= 0) {
-      alert('Введите корректное время для выхода из дома.');
-      return;
-    }
+    const movieStart = parseTimeString(timeVal);
 
-    // Сохраняем настройки
-    localStorage.setItem('movieDateTime', movieDateTime);
-    localStorage.setItem('leaveBefore', leaveBefore);
-
-    const movieTime = new Date(movieDateTime).getTime();
-    const leaveTime = movieTime - leaveBefore * 60 * 1000;
-
-    timerDiv.style.display = 'block';
-    resetBtn.style.display = 'block';
-    startBtn.style.display = 'none';
-    movieDateTimeInput.disabled = true;
-    leaveBeforeInput.disabled = true;
-
-    notifiedLeave = false;
-    notifiedMovie = false;
-
-    updateTimers(movieTime, leaveTime);
-
-    if (intervalId) clearInterval(intervalId);
-
-    intervalId = setInterval(() => {
-      updateTimers(movieTime, leaveTime);
-    }, 1000);
-  };
-
-  resetBtn.onclick = () => {
+    leaveAlerted = false;
+    movieAlerted = false;
+    timersDiv.style.display = 'block';
+    shareBtn.style.display = 'inline-block';
+    updateTimers(movieStart);
     if(intervalId) clearInterval(intervalId);
+    intervalId = setInterval(() => updateTimers(movieStart), 1000);
 
-    timerDiv.style.display = 'none';
-    resetBtn.style.display = 'none';
-    startBtn.style.display = 'block';
-    movieDateTimeInput.disabled = false;
-    leaveBeforeInput.disabled = false;
+    // Обновляем ссылку на shareBtn с параметрами
+    const url = new URL(window.location.href);
+    url.searchParams.set('movie', timeVal);
+    shareBtn.dataset.url = url.toString();
+    shareMessage.textContent = "";
+  }
 
-    timeToLeaveSpan.textContent = '--:--:--:--';
-    timeToMovieSpan.textContent = '--:--:--:--';
+  startBtn.addEventListener('click', startTimer);
 
-    progressLeave.style.width = '0%';
-    progressMovie.style.width = '0%';
+  shareBtn.addEventListener('click', () => {
+    if(!shareBtn.dataset.url) return;
+    navigator.clipboard.writeText(shareBtn.dataset.url).then(() => {
+      shareMessage.textContent = "Ссылка скопирована в буфер обмена!";
+      setTimeout(() => { shareMessage.textContent = ""; }, 3000);
+    }).catch(() => {
+      shareMessage.textContent = "Не удалось скопировать ссылку.";
+    });
+  });
 
-    notifiedLeave = false;
-    notifiedMovie = false;
-
-    localStorage.removeItem('movieDateTime');
-    localStorage.removeItem('leaveBefore');
-  };
+  // Если в URL есть параметр movie, сразу заполняем и запускаем таймер
+  const params = new URLSearchParams(window.location.search);
+  if(params.has('movie')) {
+    movieTimeInput.value = params.get('movie');
+    startTimer();
+  }
 </script>
-
 </body>
 </html>
