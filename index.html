@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Таймер до кино</title>
+<style>
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    max-width: 400px;
+    margin: 30px auto;
+    padding: 15px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+  }
+  h1 {
+    margin-bottom: 25px;
+    text-align: center;
+  }
+  label {
+    display: block;
+    margin-top: 15px;
+    font-weight: 600;
+  }
+  input, button {
+    width: 100%;
+    padding: 10px;
+    margin-top: 6px;
+    font-size: 1rem;
+    border-radius: 8px;
+    border: none;
+  }
+  input[type="datetime-local"], input[type="number"] {
+    box-sizing: border-box;
+  }
+  button {
+    background-color: #ff6f61;
+    color: white;
+    cursor: pointer;
+    font-weight: 700;
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background-color: #e85c50;
+  }
+  .timer {
+    margin-top: 30px;
+    background: rgba(255,255,255,0.15);
+    padding: 25px 20px;
+    border-radius: 14px;
+  }
+  .timer div {
+    font-size: 1.3rem;
+    margin: 15px 0;
+    font-weight: 600;
+  }
+  .time-value {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 1.6rem;
+    color: #ffd700;
+  }
+  .progress-container {
+    background: rgba(255,255,255,0.3);
+    border-radius: 8px;
+    overflow: hidden;
+    height: 15px;
+    margin-top: 8px;
+  }
+  .progress-bar {
+    height: 100%;
+    background-color: #ffd700;
+    width: 0%;
+    transition: width 0.5s ease;
+  }
+  #resetBtn {
+    background-color: #444;
+    margin-top: 15px;
+  }
+  @media (max-width: 450px) {
+    body {
+      margin: 15px;
+      padding: 10px;
+    }
+  }
+</style>
+</head>
+<body>
+
+<h1>Таймер до кино</h1>
+
+<label for="movieDateTime">Дата и время начала кино:</label>
+<input type="datetime-local" id="movieDateTime" />
+
+<label for="leaveBefore">За сколько минут выходить из дома:</label>
+<input type="number" id="leaveBefore" min="1" max="240" value="60" />
+
+<button id="startBtn">Запустить таймер</button>
+<button id="resetBtn" style="display:none;">Сбросить таймер</button>
+
+<div class="timer" style="display:none;">
+  <div>До выхода из дома: <span class="time-value" id="timeToLeave">--:--:--:--</span>
+    <div class="progress-container"><div class="progress-bar" id="progressLeave"></div></div>
+  </div>
+  <div>До начала кино: <span class="time-value" id="timeToMovie">--:--:--:--</span>
+    <div class="progress-container"><div class="progress-bar" id="progressMovie"></div></div>
+  </div>
+</div>
+
+<script>
+  const movieDateTimeInput = document.getElementById('movieDateTime');
+  const leaveBeforeInput = document.getElementById('leaveBefore');
+  const startBtn = document.getElementById('startBtn');
+  const resetBtn = document.getElementById('resetBtn');
+  const timerDiv = document.querySelector('.timer');
+  const timeToLeaveSpan = document.getElementById('timeToLeave');
+  const timeToMovieSpan = document.getElementById('timeToMovie');
+  const progressLeave = document.getElementById('progressLeave');
+  const progressMovie = document.getElementById('progressMovie');
+
+  let intervalId;
+
+  // Загрузка сохранённых значений из localStorage
+  window.onload = () => {
+    const savedMovieDateTime = localStorage.getItem('movieDateTime');
+    const savedLeaveBefore = localStorage.getItem('leaveBefore');
+    if (savedMovieDateTime) movieDateTimeInput.value = savedMovieDateTime;
+    if (savedLeaveBefore) leaveBeforeInput.value = savedLeaveBefore;
+  };
+
+  function formatTime(ms) {
+    if (ms <= 0) return "00:00:00:00";
+    const totalSeconds = Math.floor(ms / 1000);
+    const days = Math.floor(totalSeconds / 86400);
+    const hours = Math.floor((totalSeconds % 86400) / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    return `${days}д ${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}:${String(seconds).padStart(2,'0')}`;
+  }
+
+  function notifyUser(message) {
+    if (!("Notification" in window)) {
+      alert(message);
+    } else if (Notification.permission === "granted") {
+      new Notification(message);
+    } else if (Notification.permission !== "denied") {
+      Notification.requestPermission().then(permission => {
+        if (permission === "granted") new Notification(message);
+      });
+    }
+  }
+
+  function updateTimers(movieTime, leaveTime) {
+    const now = Date.now();
+
+    const diffLeave = leaveTime - now;
+    const diffMovie = movieTime - now;
+
+    timeToLeaveSpan.textContent = formatTime(diffLeave);
+    timeToMovieSpan.textContent = formatTime(diffMovie);
+
+    // Прогресс (0% - прошло, 100% - осталось)
+    const totalLeave = movieTime - leaveTime;
+    const totalMovie = movieTime - now + diffMovie;
+
+    let leaveProgress = 0;
+    if(diffLeave > 0 && totalLeave > 0) {
+      leaveProgress = ((totalLeave - diffLeave) / totalLeave) * 100;
+    } else if (diffLeave <= 0) {
+      leaveProgress = 100;
+    }
+
+    let movieProgress = 0;
+    if(diffMovie > 0) {
+      const totalMovieDuration = movieTime - (movieTime - diffMovie + diffMovie);
+      movieProgress = ((totalMovie - diffMovie) / (movieTime - (movieTime - diffMovie + diffMovie))) * 100;
+      // Простой прогресс по времени
+      movieProgress = (1 - diffMovie / (movieTime - (movieTime - diffMovie + diffMovie))) * 100;
+    }
+    else movieProgress = 100;
+
+    progressLeave.style.width = `${leaveProgress}%`;
+    progressMovie.style.width = `${movieProgress}%`;
+
+    // Уведомления
+    if(diffLeave <= 0 && !notifiedLeave) {
+      notifyUser('Пора выходить из дома!');
+      notifiedLeave = true;
+    }
+    if(diffMovie <= 0 && !notifiedMovie) {
+      notifyUser('Фильм начался!');
+      notifiedMovie = true;
+    }
+
+    if(diffMovie <= 0) timeToMovieSpan.textContent = 'Фильм начался!';
+    if(diffLeave <= 0) timeToLeaveSpan.textContent = 'Пора выходить!';
+  }
+
+  let notifiedLeave = false;
+  let notifiedMovie = false;
+
+  startBtn.onclick = () => {
+    const movieDateTime = movieDateTimeInput.value;
+    const leaveBefore = parseInt(leaveBeforeInput.value);
+
+    if (!movieDateTime) {
+      alert('Пожалуйста, выберите дату и время начала кино.');
+      return;
+    }
+    if (isNaN(leaveBefore) || leaveBefore <= 0) {
+      alert('Введите корректное время для выхода из дома.');
+      return;
+    }
+
+    // Сохраняем настройки
+    localStorage.setItem('movieDateTime', movieDateTime);
+    localStorage.setItem('leaveBefore', leaveBefore);
+
+    const movieTime = new Date(movieDateTime).getTime();
+    const leaveTime = movieTime - leaveBefore * 60 * 1000;
+
+    timerDiv.style.display = 'block';
+    resetBtn.style.display = 'block';
+    startBtn.style.display = 'none';
+    movieDateTimeInput.disabled = true;
+    leaveBeforeInput.disabled = true;
+
+    notifiedLeave = false;
+    notifiedMovie = false;
+
+    updateTimers(movieTime, leaveTime);
+
+    if (intervalId) clearInterval(intervalId);
+
+    intervalId = setInterval(() => {
+      updateTimers(movieTime, leaveTime);
+    }, 1000);
+  };
+
+  resetBtn.onclick = () => {
+    if(intervalId) clearInterval(intervalId);
+
+    timerDiv.style.display = 'none';
+    resetBtn.style.display = 'none';
+    startBtn.style.display = 'block';
+    movieDateTimeInput.disabled = false;
+    leaveBeforeInput.disabled = false;
+
+    timeToLeaveSpan.textContent = '--:--:--:--';
+    timeToMovieSpan.textContent = '--:--:--:--';
+
+    progressLeave.style.width = '0%';
+    progressMovie.style.width = '0%';
+
+    notifiedLeave = false;
+    notifiedMovie = false;
+
+    localStorage.removeItem('movieDateTime');
+    localStorage.removeItem('leaveBefore');
+  };
+</script>
+
+</body>
+</html>
