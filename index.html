@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Таймер до кино</title>
+<title>Таймер до кино (множественные события)</title>
 <style>
   body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    max-width: 400px;
+    max-width: 500px;
     margin: 30px auto;
     padding: 15px;
     background: linear-gradient(135deg, #667eea, #764ba2);
@@ -29,13 +29,14 @@
     margin-top: 15px;
     font-weight: 600;
   }
-  input, button {
+  input, button, select {
     width: 100%;
     padding: 10px;
     margin-top: 6px;
     font-size: 1rem;
     border-radius: 8px;
     border: none;
+    box-sizing: border-box;
   }
   input[type="datetime-local"], input[type="number"] {
     box-sizing: border-box;
@@ -50,23 +51,23 @@
   button:hover {
     background-color: #e85c50;
   }
-  .timer {
-    margin-top: 30px;
+  .timer, .timers-list {
+    margin-top: 20px;
     background: rgba(255,255,255,0.15);
-    padding: 25px 20px;
+    padding: 20px;
     border-radius: 14px;
   }
-  body.dark .timer {
+  body.dark .timer, body.dark .timers-list {
     background: rgba(255,255,255,0.05);
   }
-  .timer div {
-    font-size: 1.3rem;
-    margin: 15px 0;
+  .timer div, .timer h3 {
+    font-size: 1.1rem;
+    margin: 10px 0 5px;
     font-weight: 600;
   }
   .time-value {
     font-family: 'Courier New', Courier, monospace;
-    font-size: 1.6rem;
+    font-size: 1.4rem;
     color: #ffd700;
   }
   .progress-container {
@@ -74,7 +75,7 @@
     border-radius: 8px;
     overflow: hidden;
     height: 15px;
-    margin-top: 8px;
+    margin-top: 6px;
   }
   body.dark .progress-container {
     background: rgba(255,255,255,0.1);
@@ -85,108 +86,106 @@
     width: 0%;
     transition: width 0.5s ease;
   }
-  #resetBtn {
-    background-color: #444;
-    margin-top: 15px;
+  .event-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
   }
-  #themeToggle {
+  .event-info {
+    flex-grow: 1;
+    cursor: pointer;
+  }
+  .event-info.active {
+    font-weight: 700;
+    color: #ffda6b;
+  }
+  .btn-delete {
+    background: #cc4c4c;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-left: 8px;
+    border: none;
+  }
+  .btn-delete:hover {
+    background: #aa3a3a;
+  }
+  #showAllBtn {
     margin-top: 10px;
-    background-color: #444;
-  }
-  #shareBtn {
     background-color: #4caf50;
-    margin-top: 10px;
-  }
-  @media (max-width: 450px) {
-    body {
-      margin: 15px;
-      padding: 10px;
-    }
   }
 </style>
 </head>
 <body>
 
-<h1>Таймер до кино</h1>
+<h1>Таймер до кино (множественные события)</h1>
 
-<label for="movieDateTime">Дата и время начала кино:</label>
-<input type="datetime-local" id="movieDateTime" />
+<form id="addEventForm">
+  <label for="eventName">Название фильма / описание:</label>
+  <input type="text" id="eventName" required placeholder="Название фильма" />
 
-<label for="leaveBefore">За сколько минут выходить из дома:</label>
-<input type="number" id="leaveBefore" min="1" max="240" value="60" />
+  <label for="movieDateTime">Дата и время начала кино:</label>
+  <input type="datetime-local" id="movieDateTime" required />
 
-<button id="startBtn">Запустить таймер</button>
-<button id="resetBtn" style="display:none;">Сбросить таймер</button>
-<button id="themeToggle">Переключить тему</button>
-<button id="shareBtn" style="display:none;">Поделиться таймером</button>
+  <label for="leaveBefore">За сколько минут выходить из дома:</label>
+  <input type="number" id="leaveBefore" min="1" max="240" value="60" required />
 
-<div class="timer" style="display:none;">
-  <div>До выхода из дома: <span class="time-value" id="timeToLeave">--:--:--</span>
-    <div class="progress-container"><div class="progress-bar" id="progressLeave"></div></div>
-  </div>
-  <div>До начала кино: <span class="time-value" id="timeToMovie">--:--:--</span>
-    <div class="progress-container"><div class="progress-bar" id="progressMovie"></div></div>
-  </div>
+  <button type="submit">Добавить киносеанс</button>
+</form>
+
+<div class="timers-list">
+  <h2>Список киносеансов</h2>
+  <div id="eventsContainer"></div>
+  <button id="showAllBtn">Показать все таймеры</button>
 </div>
+
+<div id="timersDisplay"></div>
+
+<button id="themeToggle" style="margin-top:20px;">Переключить тему</button>
 
 <audio id="soundStart" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
 <audio id="soundHour" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 <audio id="soundMovie" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
 
 <script>
-  const movieDateTimeInput = document.getElementById('movieDateTime');
-  const leaveBeforeInput = document.getElementById('leaveBefore');
-  const startBtn = document.getElementById('startBtn');
-  const resetBtn = document.getElementById('resetBtn');
-  const timerDiv = document.querySelector('.timer');
-  const timeToLeaveSpan = document.getElementById('timeToLeave');
-  const timeToMovieSpan = document.getElementById('timeToMovie');
-  const progressLeave = document.getElementById('progressLeave');
-  const progressMovie = document.getElementById('progressMovie');
+(() => {
+  const form = document.getElementById('addEventForm');
+  const eventsContainer = document.getElementById('eventsContainer');
+  const timersDisplay = document.getElementById('timersDisplay');
   const themeToggleBtn = document.getElementById('themeToggle');
-  const shareBtn = document.getElementById('shareBtn');
+  const showAllBtn = document.getElementById('showAllBtn');
 
   const soundStart = document.getElementById('soundStart');
   const soundHour = document.getElementById('soundHour');
   const soundMovie = document.getElementById('soundMovie');
 
-  let intervalId;
-  let notifiedLeave = false;
-  let notifiedMovie = false;
-  let notifiedHourBefore = false;
+  let events = [];
+  let activeEventId = null;  // null = показывать все
+  let intervalId = null;
 
-  // Для синхронизации времени: хранить базовую временную отметку и соответствующий локальный тайм
-  let baseTimeUTC = null;   // время события в UTC
-  let leaveTimeUTC = null;  // время выхода в UTC
-
-  // Загрузка сохранённых значений из localStorage и URL параметров
-  function loadSettings() {
-    // Из URL (при наличии)
-    const urlParams = new URLSearchParams(window.location.search);
-    if (urlParams.has('movieDateTime')) {
-      movieDateTimeInput.value = urlParams.get('movieDateTime');
-    } else {
-      const savedMovieDateTime = localStorage.getItem('movieDateTime');
-      if (savedMovieDateTime) movieDateTimeInput.value = savedMovieDateTime;
+  // Загрузка из localStorage
+  function loadFromStorage() {
+    const savedEvents = localStorage.getItem('movieEvents');
+    if (savedEvents) {
+      try {
+        events = JSON.parse(savedEvents);
+      } catch {
+        events = [];
+      }
     }
-
-    if (urlParams.has('leaveBefore')) {
-      leaveBeforeInput.value = urlParams.get('leaveBefore');
-    } else {
-      const savedLeaveBefore = localStorage.getItem('leaveBefore');
-      if (savedLeaveBefore) leaveBeforeInput.value = savedLeaveBefore;
-    }
-
-    // Загрузка темы
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      document.body.classList.add('dark');
-    }
+    activeEventId = localStorage.getItem('activeEventId');
+    if (activeEventId === 'null' || !activeEventId) activeEventId = null;
   }
 
-  loadSettings();
+  // Сохранение в localStorage
+  function saveToStorage() {
+    localStorage.setItem('movieEvents', JSON.stringify(events));
+    localStorage.setItem('activeEventId', activeEventId);
+  }
 
-  // Форматирует ms в "Xд чч:мм:сс" или "чч:мм:сс", если дней нет
+  // Форматирование времени
   function formatTime(ms) {
     if (ms <= 0) return "00:00:00";
     const totalSeconds = Math.floor(ms / 1000);
@@ -199,7 +198,7 @@
     return days > 0 ? `${days}д ${timeStr}` : timeStr;
   }
 
-  // Уведомление (если разрешено)
+  // Уведомления
   function notifyUser(message) {
     if (!("Notification" in window)) {
       alert(message);
@@ -214,147 +213,281 @@
 
   function playSound(audioElem) {
     audioElem.currentTime = 0;
-    audioElem.play().catch(() => {}); // подавляем ошибки, если звук не разрешен
+    audioElem.play().catch(() => {});
   }
 
-  function updateTimers() {
-    const now = Date.now();
-
-    const diffLeave = leaveTimeUTC - now;  // сколько осталось до выхода
-    const diffMovie = baseTimeUTC - now;  // сколько осталось до фильма
-
-    // Обновляем текст
-    timeToLeaveSpan.textContent = diffLeave > 0 ? formatTime(diffLeave) : 'Пора выходить!';
-    timeToMovieSpan.textContent = diffMovie > 0 ? formatTime(diffMovie) : 'Фильм начался!';
-
-    // Прогресс для выхода: 0% - начало обратного отсчёта, 100% - время выхода
-    const totalLeave = baseTimeUTC - leaveTimeUTC;
-    let leaveProgress = 0;
-    if (now < leaveTimeUTC) {
-      leaveProgress = ((now - (baseTimeUTC - totalLeave)) / totalLeave) * 100;
-      leaveProgress = Math.min(Math.max(leaveProgress, 0), 100);
-    } else {
-      leaveProgress = 100;
-    }
-
-    // Прогресс до фильма: 0% - сейчас, 100% - фильм начинается
-    let movieProgress = 0;
-    if (now < baseTimeUTC) {
-      movieProgress = ((totalLeave + diffLeave) / (totalLeave + totalLeave)) * 100;
-      movieProgress = 100 - (diffMovie / (baseTimeUTC - (baseTimeUTC - totalLeave))) * 100;
-      movieProgress = Math.min(Math.max(movieProgress, 0), 100);
-    } else {
-      movieProgress = 100;
-    }
-
-    progressLeave.style.width = `${leaveProgress}%`;
-    progressMovie.style.width = `${movieProgress}%`;
-
-    // Уведомления
-    if (!notifiedLeave && diffLeave <= 0) {
-      notifyUser("Пора выходить из дома!");
-      playSound(soundStart);
-      notifiedLeave = true;
-    }
-    if (!notifiedHourBefore && diffLeave <= 3600000 && diffLeave > 3500000) { // за час до выхода
-      notifyUser("До выхода из дома осталось 1 час!");
-      playSound(soundHour);
-      notifiedHourBefore = true;
-    }
-    if (!notifiedMovie && diffMovie <= 0) {
-      notifyUser("Фильм начался!");
-      playSound(soundMovie);
-      notifiedMovie = true;
-    }
-
-    // Если фильм начался — останавливаем таймер
-    if (diffMovie <= 0) {
-      clearInterval(intervalId);
-      intervalId = null;
-    }
-  }
-
-  function startTimer() {
-    if (!movieDateTimeInput.value) {
-      alert('Выберите дату и время начала фильма.');
+  // Рендер списка событий (с возможностью выбрать активный и удалить)
+  function renderEventsList() {
+    eventsContainer.innerHTML = '';
+    if (events.length === 0) {
+      eventsContainer.textContent = 'Событий пока нет.';
       return;
     }
-    const movieDate = new Date(movieDateTimeInput.value);
-    if (isNaN(movieDate.getTime())) {
-      alert('Некорректная дата.');
-      return;
-    }
-    const leaveBeforeMinutes = parseInt(leaveBeforeInput.value, 10);
-    if (isNaN(leaveBeforeMinutes) || leaveBeforeMinutes <= 0) {
-      alert('Введите корректное время за сколько минут выходить.');
-      return;
-    }
+    events.forEach(ev => {
+      const div = document.createElement('div');
+      div.className = 'event-item';
 
-    // Сохраняем в localStorage
-    localStorage.setItem('movieDateTime', movieDateTimeInput.value);
-    localStorage.setItem('leaveBefore', leaveBeforeInput.value);
+      const info = document.createElement('div');
+      info.className = 'event-info' + (ev.id === activeEventId ? ' active' : '');
+      info.textContent = `${ev.name} — начало: ${new Date(ev.movieDateTime).toLocaleString()}, выходить за ${ev.leaveBefore} мин`;
+      info.title = "Кликните, чтобы выбрать этот сеанс";
+      info.onclick = () => {
+        if (activeEventId === ev.id) {
+          activeEventId = null; // сброс выбора — показывать все
+        } else {
+          activeEventId = ev.id;
+        }
+        saveToStorage();
+        renderEventsList();
+        renderTimers();
+      };
 
-    // Устанавливаем UTC время события и выхода
-    baseTimeUTC = movieDate.getTime();
-    leaveTimeUTC = baseTimeUTC - leaveBeforeMinutes * 60000;
+      const btnDel = document.createElement('button');
+      btnDel.className = 'btn-delete';
+      btnDel.textContent = '×';
+      btnDel.title = "Удалить событие";
+      btnDel.onclick = (e) => {
+        e.stopPropagation();
+        if (confirm(`Удалить событие "${ev.name}"?`)) {
+          events = events.filter(x => x.id !== ev.id);
+          if (activeEventId === ev.id) activeEventId = null;
+          saveToStorage();
+          renderEventsList();
+          renderTimers();
+        }
+      };
 
-    notifiedLeave = false;
-    notifiedMovie = false;
-    notifiedHourBefore = false;
-
-    timerDiv.style.display = 'block';
-    startBtn.style.display = 'none';
-    resetBtn.style.display = 'inline-block';
-    shareBtn.style.display = 'inline-block';
-
-    updateTimers();
-    intervalId = setInterval(updateTimers, 1000);
-  }
-
-  function resetTimer() {
-    clearInterval(intervalId);
-    intervalId = null;
-    timerDiv.style.display = 'none';
-    startBtn.style.display = 'inline-block';
-    resetBtn.style.display = 'none';
-    shareBtn.style.display = 'none';
-    notifiedLeave = false;
-    notifiedMovie = false;
-    notifiedHourBefore = false;
-  }
-
-  startBtn.addEventListener('click', startTimer);
-  resetBtn.addEventListener('click', resetTimer);
-
-  themeToggleBtn.addEventListener('click', () => {
-    document.body.classList.toggle('dark');
-    if (document.body.classList.contains('dark')) {
-      localStorage.setItem('theme', 'dark');
-    } else {
-      localStorage.setItem('theme', 'light');
-    }
-  });
-
-  shareBtn.addEventListener('click', () => {
-    const params = new URLSearchParams();
-    params.set('movieDateTime', movieDateTimeInput.value);
-    params.set('leaveBefore', leaveBeforeInput.value);
-    const shareUrl = `${window.location.origin}${window.location.pathname}?${params.toString()}`;
-    navigator.clipboard.writeText(shareUrl).then(() => {
-      alert('Ссылка скопирована в буфер обмена!');
-    }).catch(() => {
-      prompt('Скопируйте ссылку:', shareUrl);
+      div.appendChild(info);
+      div.appendChild(btnDel);
+      eventsContainer.appendChild(div);
     });
-  });
+  }
 
-  // Автоматическое обновление страницы каждую минуту (чтобы не было подвисаний)
-  setInterval(() => {
-    if (!intervalId) return;
-    // Можно обновить страницу, но не всегда желательно.
-    // Для надежности - можно раскомментировать:
-    // location.reload();
-  }, 60000);
+  // Создание DOM для одного таймера (одного события)
+  function createTimerDom(ev) {
+    const container = document.createElement('div');
+    container.className = 'timer';
 
+    const now = Date.now();
+    const startTime = new Date(ev.movieDateTime).getTime();
+    const leaveTime = startTime - ev.leaveBefore * 60000;
+
+    const toLeaveMs = leaveTime - now;
+    const toStartMs = startTime - now;
+
+    // Надписи
+    const title = document.createElement('h3');
+    title.textContent = ev.name;
+    container.appendChild(title);
+
+    // Время до выхода из дома
+    const leaveLabel = document.createElement('div');
+    leaveLabel.textContent = 'Время выйти из дома:';
+    const leaveTimeVal = document.createElement('div');
+    leaveTimeVal.className = 'time-value';
+    leaveTimeVal.textContent = formatTime(toLeaveMs);
+    container.appendChild(leaveLabel);
+    container.appendChild(leaveTimeVal);
+
+    // Прогресс выхода
+    const leaveProgressCont = document.createElement('div');
+    leaveProgressCont.className = 'progress-container';
+    const leaveProgressBar = document.createElement('div');
+    leaveProgressBar.className = 'progress-bar';
+    leaveProgressCont.appendChild(leaveProgressBar);
+    container.appendChild(leaveProgressCont);
+
+    // Время до начала фильма
+    const startLabel = document.createElement('div');
+    startLabel.textContent = 'Время до начала фильма:';
+    const startTimeVal = document.createElement('div');
+    startTimeVal.className = 'time-value';
+    startTimeVal.textContent = formatTime(toStartMs);
+    container.appendChild(startLabel);
+    container.appendChild(startTimeVal);
+
+    // Прогресс до начала фильма
+    const startProgressCont = document.createElement('div');
+    startProgressCont.className = 'progress-container';
+    const startProgressBar = document.createElement('div');
+    startProgressBar.className = 'progress-bar';
+    startProgressCont.appendChild(startProgressBar);
+    container.appendChild(startProgressCont);
+
+    // Рассчёт прогресса
+    // Общий интервал - от now до leaveTime (для выхода) и от now до startTime (для фильма)
+    // Когда прошло больше времени, прогресс = 100%
+    // Общее время от "текущий момент" до "событие" — оставшееся, но для прогресса считаем изначальное расстояние
+
+    // Для прогресса выхода: с момента now до leaveTime по отношению к разнице leaveTime - startTime + leaveBefore*60*1000
+    // Точнее: Прогресс выхода: сколько прошло времени от (текущего времени) до (время добавления события или момент с добавлением) по отношению к общему времени ожидания
+
+    // Для прогрессов удобнее считать как:
+    // leaveProgress = (totalTimeToLeave - timeLeftToLeave) / totalTimeToLeave
+    // startProgress = (totalTimeToStart - timeLeftToStart) / totalTimeToStart
+
+    // totalTimeToLeave = leaveTime - (startTime - leaveBefore)
+    // Но проще: 
+    // Для выхода: от (текущее время) до (leaveTime), исходно от (текущее время на момент добавления) до leaveTime
+    // Чтобы не усложнять, будем считать прогресс по текущему времени и фиксированному времени добавления
+
+    // Запишем время добавления события
+    if (!ev.createdAt) {
+      ev.createdAt = now;
+      saveToStorage();
+    }
+    const totalLeaveInterval = leaveTime - ev.createdAt;
+    const totalStartInterval = startTime - ev.createdAt;
+
+    // Функция для обновления прогресс-баров и таймеров
+    function update() {
+      const nowLocal = Date.now();
+      const leftLeave = leaveTime - nowLocal;
+      const leftStart = startTime - nowLocal;
+
+      leaveTimeVal.textContent = formatTime(leftLeave);
+      startTimeVal.textContent = formatTime(leftStart);
+
+      let leaveProgress = totalLeaveInterval > 0 ? (1 - leftLeave / totalLeaveInterval) * 100 : 100;
+      if (leaveProgress < 0) leaveProgress = 0;
+      if (leaveProgress > 100) leaveProgress = 100;
+      leaveProgressBar.style.width = leaveProgress + '%';
+
+      let startProgress = totalStartInterval > 0 ? (1 - leftStart / totalStartInterval) * 100 : 100;
+      if (startProgress < 0) startProgress = 0;
+      if (startProgress > 100) startProgress = 100;
+      startProgressBar.style.width = startProgress + '%';
+
+      // Звуки и уведомления (один раз на событие)
+      if (!ev.notifiedStart && leftLeave <= 0 && leftStart > 0) {
+        // Пора выходить из дома
+        playSound(soundStart);
+        notifyUser(`Пора выходить на киносеанс "${ev.name}"!`);
+        ev.notifiedStart = true;
+        saveToStorage();
+      }
+      if (!ev.notifiedHour && leftStart <= 3600000 && leftStart > 3500000) {
+        // За час до начала
+        playSound(soundHour);
+        notifyUser(`Остался час до киносеанса "${ev.name}".`);
+        ev.notifiedHour = true;
+        saveToStorage();
+      }
+      if (!ev.notifiedMovie && leftStart <= 0) {
+        playSound(soundMovie);
+        notifyUser(`Фильм "${ev.name}" уже начался!`);
+        ev.notifiedMovie = true;
+        saveToStorage();
+      }
+    }
+
+    update();
+
+    return { container, update };
+  }
+
+  // Рендер таймеров (либо один активный, либо все)
+  let timersObjects = [];
+  function renderTimers() {
+    timersDisplay.innerHTML = '';
+    timersObjects = [];
+
+    let toRender = [];
+    if (activeEventId) {
+      const ev = events.find(e => e.id === activeEventId);
+      if (ev) toRender.push(ev);
+    } else {
+      toRender = [...events];
+    }
+
+    if (toRender.length === 0) {
+      timersDisplay.textContent = 'Нет доступных событий для показа таймеров.';
+      return;
+    }
+
+    toRender.forEach(ev => {
+      const timerObj = createTimerDom(ev);
+      timersDisplay.appendChild(timerObj.container);
+      timersObjects.push(timerObj);
+    });
+  }
+
+  // Обновление всех таймеров каждую секунду
+  function startInterval() {
+    if (intervalId) clearInterval(intervalId);
+    intervalId = setInterval(() => {
+      timersObjects.forEach(t => t.update());
+    }, 1000);
+  }
+
+  // Обработка добавления нового события
+  form.onsubmit = e => {
+    e.preventDefault();
+    const name = form.eventName.value.trim();
+    const movieDateTimeStr = form.movieDateTime.value;
+    const leaveBefore = parseInt(form.leaveBefore.value, 10);
+
+    if (!name || !movieDateTimeStr || isNaN(leaveBefore)) {
+      alert('Пожалуйста, заполните все поля корректно.');
+      return;
+    }
+
+    const movieDateTime = new Date(movieDateTimeStr);
+    if (movieDateTime <= new Date()) {
+      alert('Дата и время начала должны быть в будущем.');
+      return;
+    }
+    if (leaveBefore <= 0 || leaveBefore > 240) {
+      alert('Время выхода из дома должно быть от 1 до 240 минут.');
+      return;
+    }
+
+    // Создаем уникальный ID
+    const id = Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+
+    events.push({
+      id,
+      name,
+      movieDateTime: movieDateTime.toISOString(),
+      leaveBefore,
+      createdAt: Date.now(),
+      notifiedStart: false,
+      notifiedHour: false,
+      notifiedMovie: false,
+    });
+
+    form.reset();
+    saveToStorage();
+    renderEventsList();
+    renderTimers();
+  };
+
+  // Переключение темы
+  themeToggleBtn.onclick = () => {
+    document.body.classList.toggle('dark');
+  };
+
+  // Кнопка показать все таймеры / сброс выбора
+  showAllBtn.onclick = () => {
+    activeEventId = null;
+    saveToStorage();
+    renderEventsList();
+    renderTimers();
+  };
+
+  // Инициализация
+  loadFromStorage();
+  renderEventsList();
+  renderTimers();
+  startInterval();
+
+  // Запрос разрешения на уведомления
+  if (Notification.permission !== "granted" && Notification.permission !== "denied") {
+    Notification.requestPermission();
+  }
+
+})();
 </script>
+
 </body>
 </html>
