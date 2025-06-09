@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Таймер до кино</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      background: #111;
+      color: #fff;
+      text-align: center;
+      padding: 40px;
+    }
+    h1 {
+      font-size: 2em;
+      margin-bottom: 1em;
+    }
+    .timer {
+      font-size: 2.5em;
+      margin-bottom: 2em;
+    }
+    .label {
+      font-size: 1.2em;
+      color: #ccc;
+    }
+  </style>
+</head>
+<body>
+  <h1>Обратный отсчёт</h1>
+  <div>
+    <div class="label">До выхода из дома (18:30):</div>
+    <div class="timer" id="leaveTimer">--:--:--</div>
+  </div>
+  <div>
+    <div class="label">До начала кино (19:30):</div>
+    <div class="timer" id="movieTimer">--:--:--</div>
+  </div>
+
+  <script>
+    function updateTimers() {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      const leaveTime = new Date(today);
+      leaveTime.setHours(18, 30, 0, 0);
+
+      const movieTime = new Date(today);
+      movieTime.setHours(19, 30, 0, 0);
+
+      function formatTimeDiff(diff) {
+        if (diff <= 0) return "00:00:00";
+        const h = String(Math.floor(diff / 3600000)).padStart(2, '0');
+        const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+        const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+        return `${h}:${m}:${s}`;
+      }
+
+      document.getElementById("leaveTimer").textContent = formatTimeDiff(leaveTime - now);
+      document.getElementById("movieTimer").textContent = formatTimeDiff(movieTime - now);
+    }
+
+    updateTimers();
+    setInterval(updateTimers, 1000);
+  </script>
+</body>
+</html>
