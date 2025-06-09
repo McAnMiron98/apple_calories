@@ -1,66 +1,66 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Таймер до кино</title>
-  <style>
-    body {
-      font-family: sans-serif;
-      background: #111;
-      color: #fff;
-      text-align: center;
-      padding: 40px;
-    }
-    h1 {
-      font-size: 2em;
-      margin-bottom: 1em;
-    }
-    .timer {
-      font-size: 2.5em;
-      margin-bottom: 2em;
-    }
-    .label {
-      font-size: 1.2em;
-      color: #ccc;
-    }
-  </style>
+<meta charset="UTF-8" />
+<title>Таймер до кино</title>
+<style>
+  body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+  input { font-size: 1.2em; padding: 5px; }
+  .timer { margin-top: 30px; font-size: 1.5em; }
+</style>
 </head>
 <body>
-  <h1>Обратный отсчёт</h1>
-  <div>
-    <div class="label">До выхода из дома (18:30):</div>
-    <div class="timer" id="leaveTimer">--:--:--</div>
-  </div>
-  <div>
-    <div class="label">До начала кино (19:30):</div>
-    <div class="timer" id="movieTimer">--:--:--</div>
-  </div>
 
-  <script>
-    function updateTimers() {
-      const now = new Date();
-      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+<h1>Таймер до кино</h1>
 
-      const leaveTime = new Date(today);
-      leaveTime.setHours(18, 30, 0, 0);
+<label for="movieTime">Введите время начала кино (HH:MM):</label><br/>
+<input type="time" id="movieTime" value="19:30" />
 
-      const movieTime = new Date(today);
-      movieTime.setHours(19, 30, 0, 0);
+<div class="timer" id="leaveTimer"></div>
+<div class="timer" id="movieTimer"></div>
 
-      function formatTimeDiff(diff) {
-        if (diff <= 0) return "00:00:00";
-        const h = String(Math.floor(diff / 3600000)).padStart(2, '0');
-        const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
-        const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
-        return `${h}:${m}:${s}`;
-      }
+<script>
+function updateTimers() {
+  const input = document.getElementById('movieTime').value;
+  if (!input) return;
 
-      document.getElementById("leaveTimer").textContent = formatTimeDiff(leaveTime - now);
-      document.getElementById("movieTimer").textContent = formatTimeDiff(movieTime - now);
-    }
+  const now = new Date();
+  const [hours, minutes] = input.split(':').map(Number);
 
-    updateTimers();
-    setInterval(updateTimers, 1000);
-  </script>
+  // Время начала кино сегодня с введённым часом и минутой
+  let movieStart = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes, 0);
+
+  // Если время уже прошло сегодня, считаем до завтра
+  if (movieStart < now) {
+    movieStart.setDate(movieStart.getDate() + 1);
+  }
+
+  // Время выхода — за час до кино
+  let leaveTime = new Date(movieStart.getTime() - 60 * 60 * 1000);
+
+  function formatDiff(diffMs) {
+    if (diffMs < 0) return 'Время прошло';
+    const totalSeconds = Math.floor(diffMs / 1000);
+    const h = Math.floor(totalSeconds / 3600);
+    const m = Math.floor((totalSeconds % 3600) / 60);
+    const s = totalSeconds % 60;
+    return `${h} ч ${m} мин ${s} сек`;
+  }
+
+  const timeToLeave = leaveTime - now;
+  const timeToMovie = movieStart - now;
+
+  document.getElementById('leaveTimer').textContent = `До выхода из дома: ${formatDiff(timeToLeave)}`;
+  document.getElementById('movieTimer').textContent = `До начала кино: ${formatDiff(timeToMovie)}`;
+}
+
+// Обновляем таймер каждую секунду
+setInterval(updateTimers, 1000);
+updateTimers();
+
+// Обновляем таймер сразу при изменении времени
+document.getElementById('movieTime').addEventListener('input', updateTimers);
+</script>
+
 </body>
 </html>
